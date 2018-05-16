@@ -1,93 +1,72 @@
-import tkinter
-from random import choice
-
-
-class Simon() :
-    def __init__(self, anaSayfa):
-        self.anaSayfa = anaSayfa
-        self.anaSayfa.minsize(640, 480)
-        self.anaSayfa.resizable(False, False)
-        self.anaSayfa.title("Simon Oyunu")
-        self.anaSayfa.update()
-        self.canvas = tkinter.Canvas(self.anaSayfa,width=self.anaSayfa.winfo_width(),height=self.anaSayfa.winfo_height())
+import tkinter as tk
+import random
+class Simon:
+    def __init__(self, parent):
+        self.parent = parent
+        self.canvas = tk.Canvas(self.parent, height=400, width=400)
         self.canvas.pack()
+        self.dark = {"k": "darkred", "s": "darkgoldenrod", "y": "darkgreen", "m": "darkblue"}
+        self.light = {"k": "black", "s": "black", "y": "black", "m": "black"}
 
-        self.renk = ("red", "blue", "dark green", "yellow")
-        self.acıkRenk = ("pink", "light blue", "light green", "white")
-        self.parlayanRenk = [color for color in self.renk]
-        self.dikdortgenler = []
+        self.squares = {"k": self.canvas.create_rectangle(0, 0, 200, 200, fill="darkred", outline="darkred"),
+                        "s": self.canvas.create_rectangle(200, 0, 400, 200, fill="darkgoldenrod",
+                                                          outline="darkgoldenrod"),
+                        "y": self.canvas.create_rectangle(0, 200, 200, 400, fill="darkgreen",
+                                                          outline="darkgreen"),
+                        "m": self.canvas.create_rectangle(200, 200, 400, 400, fill="darkblue",
+                                                          outline="darkblue")}
 
-        self.sıra = [choice(self.renk)]
-        self.sırası = 0
-        self.draw_canvas()
-        self.sırasınıGoster()
+        self.ids = {v: k for k, v in self.squares.items()}
+        self.high_score = 0
+        self.status = tk.Label(root, text="OYUN BAŞLADI!\nBAŞARILAR :)", font="Times 15 bold", fg="white", bg="blue")
+        self.status.pack()
+        self.parent.bind("<h>", self.score)
+        self.draw_board()
 
-        self.anaSayfa.mainloop()
+    def draw_board(self):
+        self.pattern = random.choice("ksym")
+        self.selections = ""
+        self.parent.after(1000, self.animate)
 
-    def sırasınıGoster(self):
-        self.yak(self.sıra[self.sırası])
-        if(self.sırası < len(self.sıra) - 1):
-            self.sırası += 1
-            self.anaSayfa.after(1000, self.sırasınıGoster)
-        else :
-            self.sırası = 0
+    def animate(self, idx=0):
+        c = self.pattern[idx]
+        self.canvas.itemconfig(self.squares[c], fill=self.light[c], outline=self.light[c])
+        self.parent.after(500, lambda: self.canvas.itemconfig(self.squares[c], fill=self.dark[c],
+                                                              outline=self.dark[c]))
 
-    def yak(self, color):
-        index = self.renk.index(color)
-        if self.parlayanRenk[index] == self.renk[index] :
-            self.parlayanRenk[index] = self.acıkRenk[index]
-            self.anaSayfa.after(1000, self.yak, color)
-        else :
-            self.parlayanRenk[index] = self.renk[index]
-        self.draw_canvas()
+        idx += 1
+        if idx < len(self.pattern):
+            self.parent.after(1000, lambda: self.animate(idx))
+        else:
+            self.canvas.bind("<1>", self.select)
 
+    def select(self, event=None):
+        id = self.canvas.find_withtag("current")[0]
+        color = self.ids[id]
+        self.selections += color
+        self.canvas.itemconfig(id, fill=self.light[color], outline=self.light[color])
+        self.parent.after(800,
+                          lambda: self.canvas.itemconfig(id, fill=self.dark[color], outline=self.dark[color]))
 
-    def check_choice(self):
-        dikdortgen = self.canvas.find_withtag("current")[0]
-        Dikdortgen = self.dikdortgenler.index(dikdortgen)
-        renk= self.renk[Dikdortgen]
-        if renk == self.sıra[self.sırası]:
-            if self.sırası < len(self.sıra) - 1:
-                self.sırası += 1
-            else :
-                self.anaSayfa.title("Simon Oyunu - Puanınız: {}".format(len(self.sıra)))
-                self.sıra.append(choice(self.renk))
-                self.sırası = 0
-                self.sırasınıGoster()
-        else :
-            self.anaSayfa.title("Simon oyununu  Kaybettiniz! | Puanınız: {}".format(len(self.sıra)))
-            self.sıra[:] = []
-            self.sıra.append(choice(self.renk))
-            self.sırası = 0
-            self.sırasınıGoster()
+        if self.pattern == self.selections:
+            self.canvas.unbind("<1>")
+            self.status.config(text="DOĞRU!")
+            self.parent.after(2000, lambda: self.status.config(text=""))
+            self.pattern += random.choice("ksym")
+            self.selections = ""
+            self.high_score = max(self.high_score, len(self.pattern))
+            self.parent.after(2000, self.animate)
+        elif self.pattern[len(self.selections) - 1] != color:  # yanlış şeye tıklayınca
+            self.canvas.unbind("<1>")
+            self.status.config(text="YANLIŞ!")
+            self.parent.after(2000, lambda: self.status.config(text=""))
+            self.parent.after(2000, self.draw_board)
 
-
-    def draw_canvas(self):
-        self.dikdortgenler[:] = []
-        self.canvas.delete("all")
-        for index, color in enumerate(self.parlayanRenk):
-            if index <= 1:
-                rectangle = self.canvas.create_rectangle(
-                                          index * self.anaSayfa.winfo_width(),
-                                          0, self.anaSayfa.winfo_width() / 2,
-                                          self.anaSayfa.winfo_height() / 2,
-                                          fill = color, outline = color)
-            else:
-                rectangle = self.canvas.create_rectangle(
-                                        (index - 2) * self.anaSayfa.winfo_width(),
-                                        self.anaSayfa.winfo_height(),
-                                        self.anaSayfa.winfo_width() / 2,
-                                        self.anaSayfa.winfo_height() / 2,
-                                        fill = color, outline = color)
-            self.dikdortgenler.append(rectangle)
-        for id in self.dikdortgenler:
-            self.canvas.tag_bind(id, '<ButtonPress-1>', lambda e : self.check_choice())
+    def score(self, event=None):
+        self.status.config(text=self.high_score)
+        self.parent.after(2000, lambda: self.status.config(text=""))
 
 
-def main():
-    root = tkinter.Tk()
-    gui = Simon(root)
-
-
-if __name__ == "__main__" : main()
-
+root = tk.Tk()
+simon = Simon(root)
+root.mainloop()
